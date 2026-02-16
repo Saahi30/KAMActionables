@@ -1,0 +1,110 @@
+import React from 'react';
+import { useDashboard } from '../../context/DashboardContext';
+
+const KPISection: React.FC = () => {
+    const { actionables, timelineFilter, setTimelineFilter, selectedKam, activeSource, searchQuery } = useDashboard();
+
+    // Replicate the base filtering logic from Dashboard to ensure KPI numbers match
+    const baseItems = actionables.filter(item => {
+        // Search Filter (Candidate Name)
+        if (searchQuery && !item.candidateName.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+
+        // Source Filter
+        if (activeSource !== 'ALL' && item.source !== activeSource) return false;
+
+        // KAM Filter
+        if (selectedKam.length > 0 && !selectedKam.includes(item.kam)) return false;
+
+        // Snooze Filter
+        if (item.snoozeUntil) {
+            const snoozeDate = new Date(item.snoozeUntil);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (snoozeDate > today) return false;
+        }
+
+        return true;
+    });
+
+    const stats = {
+        total: baseItems.length,
+        critical: baseItems.filter(a => a.pendingDays >= 45).length,
+        p0: baseItems.filter(a => a.pendingDays >= 30 && a.pendingDays < 45).length,
+        p1: baseItems.filter(a => a.pendingDays >= 10 && a.pendingDays < 30).length
+    };
+
+    const cards = [
+        { id: 'ALL', label: 'Total Pending', value: stats.total, color: 'var(--text-primary)', bg: 'var(--bg-card)' },
+        { id: '45_PLUS', label: 'Critical (45+ Days)', value: stats.critical, color: 'var(--danger)', bg: 'rgba(239, 68, 68, 0.1)' },
+        { id: '30_PLUS', label: 'Attention (30+ Days)', value: stats.p0, color: 'var(--warning)', bg: 'rgba(250, 204, 21, 0.1)' },
+        { id: '10_PLUS', label: 'Normal (10+ Days)', value: stats.p1, color: 'var(--success)', bg: 'rgba(6, 78, 59, 0.1)' },
+    ];
+
+    return (
+        <div className="kpi-grid">
+            {cards.map(card => (
+                <div
+                    key={card.id}
+                    className={`kpi-card ${timelineFilter === card.id ? 'active' : ''}`}
+                    onClick={() => setTimelineFilter(card.id as any)}
+                    style={{ borderColor: timelineFilter === card.id ? card.color : 'transparent' }}
+                >
+                    <div className="kpi-value" style={{ color: card.color }}>{card.value}</div>
+                    <div className="kpi-label">{card.label}</div>
+                    <div className="kpi-bg" style={{ background: card.bg }}></div>
+                </div>
+            ))}
+
+            <style>{`
+                .kpi-grid {
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 1.5rem;
+                    margin-bottom: 2rem;
+                }
+                .kpi-card {
+                    position: relative;
+                    background: var(--bg-secondary);
+                    border: 1px solid var(--bg-card);
+                    border-radius: 12px;
+                    padding: 1.5rem;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    overflow: hidden;
+                }
+                .kpi-card:hover {
+                    transform: translateY(-2px);
+                    border-color: rgba(255,255,255,0.1);
+                }
+                .kpi-card.active {
+                    background: var(--bg-card);
+                }
+                .kpi-value {
+                    font-size: 2rem;
+                    font-weight: 700;
+                    margin-bottom: 0.5rem;
+                    position: relative;
+                    z-index: 1;
+                }
+                .kpi-label {
+                    color: var(--text-secondary);
+                    font-size: 0.9rem;
+                    font-weight: 500;
+                     position: relative;
+                    z-index: 1;
+                }
+                .kpi-bg {
+                    position: absolute;
+                    top: 0;
+                    right: 0;
+                    bottom: 0;
+                    width: 30%;
+                    filter: blur(40px);
+                    opacity: 0.5;
+                }
+            `}</style>
+        </div>
+    );
+};
+
+export default KPISection;
