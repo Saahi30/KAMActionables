@@ -11,9 +11,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const {
         activeSource,
         setActiveSource,
+        activeView,
+        setActiveView,
         selectedKam,
         setSelectedKam,
-        allKams,
+        kamLeaderboard,
         refreshData
     } = useDashboard();
 
@@ -36,8 +38,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <Sidebar
                 activeSource={activeSource}
                 onSourceChange={setActiveSource}
+                activeView={activeView}
+                onViewChange={setActiveView}
                 selectedKam={selectedKam}
-                kams={allKams}
+                kams={kamLeaderboard}
                 onKamChange={handleKamChange}
                 onRefresh={refreshData}
             />

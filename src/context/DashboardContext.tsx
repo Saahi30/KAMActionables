@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import type { ActionableItem } from '../types';
+import type { ActionableItem, KamStat } from '../types';
 import { fetchPostTBRRecords, fetchICRecords } from '../services/airtableService';
 import { normalizePostTBR, normalizeICData } from '../services/transformers';
 
@@ -16,7 +16,8 @@ interface DashboardContextType {
     setTimelineFilter: (filter: 'ALL' | '10_PLUS' | '30_PLUS' | '45_PLUS') => void;
     refreshData: (silent?: boolean) => Promise<void>;
     removeLocalItem: (id: string) => void;
-    allKams: string[];
+    markAsHandled: (id: string) => void;
+    kamLeaderboard: KamStat[];
     searchQuery: string;
     setSearchQuery: (query: string) => void;
 }
@@ -36,6 +37,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [selectedKam, setSelectedKam] = useState<string[]>([]);
     const [timelineFilter, setTimelineFilter] = useState<'ALL' | '10_PLUS' | '30_PLUS' | '45_PLUS'>('ALL');
     const [searchQuery, setSearchQuery] = useState('');
+    const [handledIds, setHandledIds] = useState<Set<string>>(new Set());
 
     // Sync completedIds to localStorage
     useEffect(() => {
@@ -56,17 +58,34 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
             const ic = normalizeICData(icRaw);
             const allItems = [...postTbr, ...ic];
 
-            // 3. Cleanup completedIds
-            // If an ID is in our local "completed" set but NOT in the fresh fetch, 
-            // it means the backend View has effectively filtered it out. We can stop tracking it locally.
+            // 3. Cleanup completedIds and handledIds
+            const fetchedIds = new Set(allItems.map(i => i.id));
+
             setCompletedIds(prev => {
                 const next = new Set(prev);
-                const fetchedIds = new Set(allItems.map(i => i.id));
                 let changed = false;
                 next.forEach(id => {
                     if (!fetchedIds.has(id)) {
                         next.delete(id);
                         changed = true;
+                    }
+                });
+                return changed ? next : prev;
+            });
+
+            // Cleanup handledIds if they are now filtered out by backend logic (though backend doesn't filter comments)
+            // Or better: keep them until the fetch returns the updated note/snooze
+            setHandledIds(prev => {
+                const next = new Set(prev);
+                let changed = false;
+                allItems.forEach(item => {
+                    if (next.has(item.id)) {
+                        // Check if backend now reflects "handled" state
+                        const notes = (item.displayNotes || "") + (item.schedulerNotes || "");
+                        if (notes.trim().length > 0 || item.snoozeUntil) {
+                            next.delete(item.id);
+                            changed = true;
+                        }
                     }
                 });
                 return changed ? next : prev;
@@ -88,8 +107,26 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
         });
     };
 
-    // Memoized filtered actionables
-    const actionables = React.useMemo(() => {
+    const markAsHandled = (id: string) => {
+        setHandledIds(prev => {
+            const next = new Set(prev);
+            next.add(id);
+            return next;
+        });
+    };
+
+    // Helper to determine if an item is "New"
+    const isNewItem = (item: ActionableItem) => {
+        if (handledIds.has(item.id)) return false;
+
+        const hasComments = (item.displayNotes && item.displayNotes.trim().length > 0) ||
+            (item.schedulerNotes && item.schedulerNotes.trim().length > 0);
+        const hasSnooze = !!item.snoozeUntil;
+        return !hasComments && !hasSnooze;
+    };
+
+    // Memoized base actionables (only filters completed)
+    const baseActionables = React.useMemo(() => {
         return rawActionables.filter(item => {
             // Priority 1: Check if it's in our local "just completed" set
             if (completedIds.has(item.id)) return false;
@@ -100,12 +137,40 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
         });
     }, [rawActionables, completedIds]);
 
+    // Derived state for all items currently filtered by Source and Search
+    const filteredBaseItems = React.useMemo(() => {
+        return baseActionables.filter(item => {
+            if (activeSource !== 'ALL' && item.source !== activeSource) return false;
+            if (searchQuery && !item.candidateName.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+            return true;
+        });
+    }, [baseActionables, activeSource, searchQuery]);
+
+    // Final actionables based on Active View (respects ALL vs NEW)
+    const actionables = React.useMemo(() => {
+        if (activeView === 'NEW') {
+            return filteredBaseItems.filter(isNewItem);
+        }
+        return filteredBaseItems;
+    }, [filteredBaseItems, activeView]);
+
     useEffect(() => {
         refreshData();
     }, []);
 
-    // Derived state for KAM list
-    const allKams = Array.from(new Set(actionables.map(item => item.kam))).filter(Boolean).sort();
+    // Derived state for KAM leaderboard (respects source, search, AND activeView)
+    const kamLeaderboard = React.useMemo(() => {
+        const counts: Record<string, number> = {};
+
+        actionables.forEach(item => {
+            const kamName = item.kam || "Unassigned";
+            counts[kamName] = (counts[kamName] || 0) + 1;
+        });
+
+        return Object.entries(counts)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count);
+    }, [actionables]);
 
     return (
         <DashboardContext.Provider value={{
@@ -121,7 +186,8 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
             setTimelineFilter,
             refreshData,
             removeLocalItem,
-            allKams,
+            markAsHandled,
+            kamLeaderboard,
             searchQuery,
             setSearchQuery
         }}>

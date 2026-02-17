@@ -39,3 +39,8 @@ export interface CommentResponse {
         };
     };
 }
+
+export interface KamStat {
+    name: string;
+    count: number;
+}

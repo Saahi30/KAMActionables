@@ -10,7 +10,7 @@ interface ActionModalProps {
 }
 
 const ActionModal: React.FC<ActionModalProps> = ({ item, onClose }) => {
-    const { refreshData } = useDashboard();
+    const { refreshData, markAsHandled } = useDashboard();
     const [comment, setComment] = useState('');
     const [loading, setLoading] = useState(false);
     const [snoozeDate, setSnoozeDate] = useState('');
@@ -38,16 +38,23 @@ const ActionModal: React.FC<ActionModalProps> = ({ item, onClose }) => {
 
         setLoading(true);
         try {
+            // Optimistic update for New view
+            markAsHandled(item.id);
+
             if (hasSnooze) {
                 const snoozeComment = `[SNOOZE: ${snoozeDate}] ${trimmedComment}`;
                 await addComment(item, snoozeComment);
             } else {
                 await addComment(item, trimmedComment);
             }
-            await refreshData();
+
+            // Refresh data in background
+            refreshData(true);
             onClose();
         } catch (error) {
             setError('Failed to update: ' + error);
+            // Optionally could rollback the markAsHandled if we had a rollback mechanism, 
+            // but refreshData will eventually correct it anyway.
         } finally {
             setLoading(false);
         }
