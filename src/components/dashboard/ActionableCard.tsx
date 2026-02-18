@@ -27,9 +27,9 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
     const getSeverityColor = (s: string) => {
         switch (s) {
             case 'extreme': return 'var(--danger)';      // Red for 45+
-            case 'critical': return 'var(--warning)';     // Golden for 30-44
-            case 'high': return 'var(--warning)';        // Golden/Yellow for 15-29
-            default: return 'var(--success)';            // Dark Green for Others
+            case 'critical': return 'var(--warning)';    // Golden for 30-44
+            case 'high': return 'var(--success)';        // Green for 15-29 (Normal)
+            default: return 'var(--success)';            // Green for Others
         }
     };
 
@@ -44,9 +44,14 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
 
     const statusStyle = getStatusStyle(item.status);
     const borderColor = getSeverityColor(item.severity);
+    const today = new Date().toISOString().split("T")[0];
+    const isSnoozeExpired = !!(item.snoozeUntil && item.snoozeUntil <= today);
+    const snoozeDaysLeft = item.snoozeUntil
+        ? Math.ceil((new Date(item.snoozeUntil).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+        : null;
 
     return (
-        <div className="actionable-card" style={{ borderLeftColor: borderColor }}>
+        <div className={`actionable-card ${isSnoozeExpired ? 'snooze-expired-mode' : ''}`} style={{ borderLeftColor: borderColor }}>
             <div className="card-layout">
                 {/* Left Column: Days & Platform */}
                 <div className="left-col">
@@ -62,7 +67,17 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
                 {/* Right Column: Content */}
                 <div className="right-col">
                     <div className="content-top">
-                        <h4 className="candidate-name">{item.candidateName}</h4>
+                        {isSnoozeExpired && (
+                            <div className="expired-pill">🚨 SNOOZE EXPIRED</div>
+                        )}
+                        <div className="title-row">
+                            <h4 className="candidate-name">{item.candidateName}</h4>
+                            {item.snoozeUntil && !isSnoozeExpired && (
+                                <div className="snooze-countdown">
+                                    🕓 {snoozeDaysLeft}d left
+                                </div>
+                            )}
+                        </div>
                         <div className="company-role">
                             <span className="company">{item.company}</span>
                             <span className="dot">•</span>
@@ -76,7 +91,16 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
                     </div>
 
                     <div className="latest-note-pill">
-                        <p>{item.displayNotes ? item.displayNotes.split('\n').pop()?.replace(/^\[.*?\]\s*/, '') : ''}</p>
+                        <p>{(() => {
+                            if (!item.displayNotes) return '';
+                            const lastLine = item.displayNotes.split('\n').pop() || '';
+                            // Remove [YYYY-MM-DD], [SNOOZE: ...], or [COMPLETED: ...]
+                            return lastLine
+                                .replace(/^\[\d{4}-\d{2}-\d{2}\]\s*/, '') // Remove date
+                                .replace(/\[SNOOZE:.*?\]\s*/, '')        // Remove snooze marker
+                                .replace(/\[COMPLETED:.*?\]\s*/, '')    // Remove completed marker
+                                .trim();
+                        })()}</p>
                     </div>
 
                     <div className="card-actions">
@@ -112,21 +136,56 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
                     border-left: 4px solid; 
                     border-radius: 12px;
                     padding: 0.6rem;
-                    min-width: 350px;
+                    min-width: 300px;
                     width: fit-content;
-                    max-width: 650px; /* Increased to accommodate very long names */
-                    min-height: 165px;
+                    max-width: 500px; 
+                    min-height: 140px;
                     display: flex;
                     flex-direction: column;
                     scroll-snap-align: start;
                     transition: transform 0.2s, box-shadow 0.2s;
+                    position: relative;
+                }
+                .snooze-expired-mode {
+                    border: 1px solid var(--danger) !important;
+                    border-left-width: 4px !important;
+                    background: rgba(239, 68, 68, 0.05);
+                }
+                .expired-pill {
+                    background: var(--danger);
+                    color: white;
+                    font-size: 0.55rem;
+                    font-weight: 800;
+                    display: inline-flex;
+                    padding: 1px 6px;
+                    border-radius: 4px;
+                    letter-spacing: 0.05em;
+                    margin-bottom: 0.2rem;
+                    text-transform: uppercase;
+                    width: fit-content;
+                }
+                .title-row {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    width: 100%;
+                    gap: 0.75rem;
+                }
+                .snooze-countdown {
+                    font-size: 0.65rem;
+                    font-weight: 700;
+                    color: #3b82f6;
+                    background: rgba(59, 130, 246, 0.1);
+                    padding: 1px 5px;
+                    border-radius: 4px;
+                    white-space: nowrap;
                 }
                 .actionable-card:hover {
-                    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+                    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
                 }
                 .card-layout {
                     display: flex;
-                    gap: 0.75rem;
+                    gap: 0.6rem;
                     flex: 1;
                 }
                 
@@ -134,15 +193,15 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
                 .left-col {
                     display: flex;
                     flex-direction: column;
-                    gap: 0.5rem;
+                    gap: 0.4rem;
                     align-items: center;
-                    width: 55px;
+                    width: 45px;
                 }
                 .days-box {
-                    width: 48px;
-                    height: 48px;
+                    width: 42px;
+                    height: 42px;
                     border: 2px solid;
-                    border-radius: 8px;
+                    border-radius: 6px;
                     display: flex;
                     flex-direction: column;
                     align-items: center;
@@ -150,13 +209,13 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
                     background: var(--bg-overlay);
                 }
                 .days-number {
-                    font-size: 0.9rem;
+                    font-size: 0.85rem;
                     font-weight: 800;
                     line-height: 1;
                     color: var(--text-primary);
                 }
                 .days-label {
-                    font-size: 0.5rem;
+                    font-size: 0.45rem;
                     font-weight: 600;
                     text-transform: uppercase;
                     color: var(--text-secondary);
@@ -184,40 +243,40 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
                     flex: 1;
                     display: flex;
                     flex-direction: column;
-                    gap: 0.75rem;
+                    gap: 0.5rem;
                     min-width: fit-content; /* Ensure it grows with content */
                 }
                 .content-top {
                     display: flex;
                     flex-direction: column;
-                    gap: 0.2rem;
+                    gap: 0.1rem;
                 }
                 .candidate-name {
                     margin: 0;
-                    font-size: 1rem;
+                    font-size: 0.95rem;
                     font-weight: 800;
                     color: var(--text-primary);
                     letter-spacing: -0.01em;
-                    height: 1.2rem;
-                    display: flex;
-                    align-items: center;
-                    white-space: nowrap;
+                    line-height: 1.1;
+                    display: block;
+                    word-break: break-word;
                 }
                 .company-role {
                     display: flex;
+                    flex-wrap: wrap;
                     align-items: center;
-                    gap: 6px;
-                    font-size: 0.8rem;
+                    gap: 4px;
+                    font-size: 0.75rem;
                     color: var(--text-secondary);
                     font-weight: 500;
-                    height: 1rem;
-                    white-space: nowrap;
+                    margin-top: 1px;
                 }
                 .company, .role {
                     white-space: nowrap;
                 }
                 .company {
-                    flex-shrink: 1;
+                    color: var(--text-primary);
+                    opacity: 0.8;
                 }
                 .role {
                     flex-shrink: 2; /* Prioritize showing company over role if space is tight */
@@ -225,17 +284,17 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
                 .dot {
                     color: var(--text-secondary);
                     opacity: 0.5;
-                    font-size: 1rem;
+                    font-size: 0.8rem;
                 }
                 .status-container {
-                    height: 22px;
+                    height: 20px;
                     display: flex;
                     align-items: center;
                 }
                 .status-pill {
-                    font-size: 0.7rem;
+                    font-size: 0.65rem;
                     font-weight: 700;
-                    padding: 1px 8px;
+                    padding: 1px 6px;
                     border-radius: 12px;
                     align-self: flex-start;
                     white-space: nowrap;
@@ -245,17 +304,17 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
 
                 .latest-note-pill {
                     background: var(--bg-overlay);
-                    padding: 6px 12px;
-                    border-radius: 8px;
+                    padding: 4px 10px;
+                    border-radius: 6px;
                     border: 1px solid var(--bg-card);
                     align-self: stretch;
-                    min-height: 32px;
+                    min-height: 28px;
                     display: flex;
                     align-items: center;
                 }
                 .latest-note-pill p {
                     margin: 0;
-                    font-size: 0.8rem;
+                    font-size: 0.75rem;
                     font-weight: 500;
                     color: var(--text-primary);
                     white-space: nowrap;
@@ -265,13 +324,13 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
 
                 .card-actions {
                     display: flex;
-                    gap: 0.75rem;
+                    gap: 0.5rem;
                     margin-top: auto;
-                    padding-top: 0.5rem;
+                    padding-top: 0.4rem;
                 }
                 .action-btn {
-                    padding: 8px 16px;
-                    border-radius: 8px;
+                    padding: 6px 12px;
+                    border-radius: 6px;
                     border: 1px solid var(--bg-card);
                     background: var(--bg-overlay);
                     color: var(--text-primary);
@@ -279,7 +338,7 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    font-size: 0.85rem;
+                    font-size: 0.75rem;
                     font-weight: 600;
                     transition: all 0.2s;
                 }
@@ -287,7 +346,7 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
                     color: #3b82f6;
                     border-color: rgba(59, 130, 246, 0.3);
                     background: rgba(59, 130, 246, 0.05);
-                    gap: 0.5rem;
+                    gap: 0.4rem;
                 }
                 .snooze-btn:hover {
                     background: #3b82f6;
@@ -296,16 +355,16 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
                 }
                 .complete-btn {
                     margin-left: auto;
-                    padding: 8px 16px;
+                    padding: 6px 12px;
                     background: rgba(16, 185, 129, 0.1);
                     color: var(--success);
                     border: 1px solid rgba(16, 185, 129, 0.2);
-                    border-radius: 8px;
+                    border-radius: 6px;
                     cursor: pointer;
                     display: flex;
                     align-items: center;
-                    gap: 0.5rem;
-                    font-size: 0.85rem;
+                    gap: 0.4rem;
+                    font-size: 0.75rem;
                     font-weight: 700;
                     transition: all 0.2s;
                 }

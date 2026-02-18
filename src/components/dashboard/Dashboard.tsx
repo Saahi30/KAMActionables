@@ -21,8 +21,13 @@ const Dashboard: React.FC = () => {
 
     // 1. Base Filter (Always applied) - Source + KAM + Snooze + Search
     const baseItems = actionables.filter(item => {
-        // Search Filter (Candidate Name)
-        if (searchQuery && !item.candidateName.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+        // Search Filter (Candidate Name OR Company Name)
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            const matchesCandidate = item.candidateName.toLowerCase().includes(query);
+            const matchesCompany = item.company.toLowerCase().includes(query);
+            if (!matchesCandidate && !matchesCompany) return false;
+        }
 
         // Source Filter
         if (activeSource !== 'ALL' && item.source !== activeSource) return false;
@@ -50,9 +55,20 @@ const Dashboard: React.FC = () => {
     });
 
     // Bucketing for Swimlanes
-    const criticalItems = filteredItems.filter(i => i.pendingDays >= 45).sort((a, b) => b.pendingDays - a.pendingDays);
-    const attentionItems = filteredItems.filter(i => i.pendingDays >= 30 && i.pendingDays < 45).sort((a, b) => b.pendingDays - a.pendingDays);
-    const normalItems = filteredItems.filter(i => i.pendingDays < 30).sort((a, b) => b.pendingDays - a.pendingDays);
+    const sortWithSnooze = (a: ActionableItem, b: ActionableItem) => {
+        const today = new Date().toISOString().split("T")[0];
+        const aExpired = a.snoozeUntil && a.snoozeUntil <= today;
+        const bExpired = b.snoozeUntil && b.snoozeUntil <= today;
+
+        if (aExpired && !bExpired) return -1;
+        if (!aExpired && bExpired) return 1;
+
+        return b.pendingDays - a.pendingDays;
+    };
+
+    const criticalItems = filteredItems.filter(i => i.pendingDays >= 45).sort(sortWithSnooze);
+    const attentionItems = filteredItems.filter(i => i.pendingDays >= 30 && i.pendingDays < 45).sort(sortWithSnooze);
+    const normalItems = filteredItems.filter(i => i.pendingDays < 30).sort(sortWithSnooze);
 
     const handleComplete = async (item: ActionableItem) => {
         try {
@@ -239,24 +255,36 @@ const Dashboard: React.FC = () => {
             .card-list {
                 display: flex;
                 flex-direction: row; /* Horizontal cards */
-                gap: 1rem;
+                gap: 1.25rem;
                 overflow-x: auto; /* Horizontal scroll */
-                padding-bottom: 0.5rem;
+                padding: 0.5rem 0.5rem 1rem 0.5rem; /* Bottom padding for scrollbar */
                 scroll-behavior: smooth;
                 scroll-snap-type: x mandatory;
+                width: 100%;
+                min-height: fit-content;
             }
             .card-list::-webkit-scrollbar {
-                height: 8px;
+                height: 6px;
             }
             .card-list::-webkit-scrollbar-track {
-                background: rgba(255, 255, 255, 0.05);
-                border-radius: 4px;
+                background: rgba(0, 0, 0, 0.05);
+                border-radius: 10px;
             }
             .card-list::-webkit-scrollbar-thumb {
-                background: rgba(255, 255, 255, 0.2);
-                border-radius: 4px;
+                background: rgba(156, 163, 175, 0.5); /* Gray-400 with opacity */
+                border-radius: 10px;
+                transition: background 0.2s;
             }
             .card-list::-webkit-scrollbar-thumb:hover {
+                background: rgba(107, 114, 128, 0.8); /* Gray-500 with opacity */
+            }
+            [data-theme='dark'] .card-list::-webkit-scrollbar-track {
+                background: rgba(255, 255, 255, 0.05);
+            }
+            [data-theme='dark'] .card-list::-webkit-scrollbar-thumb {
+                background: rgba(255, 255, 255, 0.2);
+            }
+            [data-theme='dark'] .card-list::-webkit-scrollbar-thumb:hover {
                 background: rgba(255, 255, 255, 0.3);
             }
 

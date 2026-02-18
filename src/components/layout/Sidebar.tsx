@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Users, RefreshCw, BarChart3, Inbox, Eye, ChevronDown, ChevronRight } from 'lucide-react';
+import { RefreshCw, BarChart3, Inbox, Eye, ChevronDown, ChevronRight } from 'lucide-react';
 import type { KamStat } from '../../types';
 
 interface SidebarProps {
@@ -61,27 +61,26 @@ const Sidebar: React.FC<SidebarProps> = ({
             <div className="sidebar-section">
                 <h3>Source</h3>
                 <nav className="nav-menu">
-                    <button
-                        className={`nav-item ${activeSource === 'ALL' ? 'active' : ''}`}
-                        onClick={() => onSourceChange('ALL')}
-                    >
-                        <LayoutDashboard size={18} />
-                        All Actionables
-                    </button>
-                    <button
-                        className={`nav-item ${activeSource === 'POST_TBR' ? 'active' : ''}`}
-                        onClick={() => onSourceChange('POST_TBR')}
-                    >
-                        <Users size={18} />
-                        Post-TBR
-                    </button>
-                    <button
-                        className={`nav-item ${activeSource === 'IC' ? 'active' : ''}`}
-                        onClick={() => onSourceChange('IC')}
-                    >
-                        <Users size={18} />
-                        IC Actionables
-                    </button>
+                    <div className="source-toggles">
+                        <button
+                            className={`source-btn ${activeSource === 'ALL' ? 'active' : ''}`}
+                            onClick={() => onSourceChange('ALL')}
+                        >
+                            <span>All</span>
+                        </button>
+                        <button
+                            className={`source-btn ${activeSource === 'POST_TBR' ? 'active' : ''}`}
+                            onClick={() => onSourceChange('POST_TBR')}
+                        >
+                            <span>Post-TBR</span>
+                        </button>
+                        <button
+                            className={`source-btn ${activeSource === 'IC' ? 'active' : ''}`}
+                            onClick={() => onSourceChange('IC')}
+                        >
+                            <span>IC</span>
+                        </button>
+                    </div>
                 </nav>
             </div>
 
@@ -142,40 +141,55 @@ const Sidebar: React.FC<SidebarProps> = ({
             font-size: 1.1rem;
         }
         .sidebar-section {
-            padding: 0.5rem 1.5rem;
+            padding: 0.15rem 1.5rem;
             flex: 0 0 auto;
         }
         .sidebar-section:nth-of-type(3) {
-            flex: 1;
-            overflow-y: auto;
-            min-height: 0; /* Important for flex overflow */
+            flex: 0 0 auto;
+            min-height: 0;
+        }
+        .sidebar-section:nth-of-type(3)::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar-section:nth-of-type(3)::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .sidebar-section:nth-of-type(3)::-webkit-scrollbar-thumb {
+            background: var(--bg-card);
+            border-radius: 10px;
+        }
+        .sidebar-section:nth-of-type(3)::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
         }
         .sidebar-section h3 {
             font-size: 0.7rem;
             text-transform: uppercase;
             letter-spacing: 1px;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.3rem;
             color: var(--text-secondary);
             opacity: 0.7;
         }
         .view-toggles {
             display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-            margin-bottom: 1rem;
+            gap: 4px;
+            margin-bottom: 0.4rem;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 4px;
+            border-radius: 12px;
+            border: 1px solid var(--bg-card);
         }
         .view-btn {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            width: 100%;
-            padding: 0.6rem 0.75rem;
+            justify-content: center;
+            flex: 1;
+            padding: 0.5rem 0.25rem;
             border-radius: 8px;
             background: transparent;
             border: none;
             color: var(--text-secondary);
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
             font-family: inherit;
         }
         .view-btn:hover {
@@ -186,11 +200,13 @@ const Sidebar: React.FC<SidebarProps> = ({
             background: var(--bg-card);
             color: var(--text-primary);
             font-weight: 600;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
         .view-btn-content {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
+            gap: 0.5rem;
+            font-size: 0.85rem;
         }
         .view-count {
             font-size: 0.75rem;
@@ -213,7 +229,42 @@ const Sidebar: React.FC<SidebarProps> = ({
         .nav-menu {
             display: flex;
             flex-direction: column;
-            gap: 0.25rem;
+            gap: 0.5rem;
+        }
+        .source-toggles {
+            display: flex;
+            gap: 4px;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 4px;
+            border-radius: 12px;
+            border: 1px solid var(--bg-card);
+        }
+        .source-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            padding: 0.5rem 0.2rem;
+            border-radius: 8px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            font-size: 0.75rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .source-btn:hover {
+            background: var(--bg-overlay);
+            color: var(--text-primary);
+        }
+        .source-btn.active {
+            background: var(--accent-primary);
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
         .nav-item {
             display: flex;
@@ -228,6 +279,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             transition: all 0.2s;
             text-align: left;
             font-family: inherit;
+            font-size: 0.9rem;
         }
         .nav-item:hover {
             background: var(--bg-overlay);
@@ -264,17 +316,37 @@ const Sidebar: React.FC<SidebarProps> = ({
         .kam-list {
             display: flex;
             flex-direction: column;
-            gap: 0.4rem;
+            gap: 0.2rem;
+            max-height: 335px; /* Fits All KAM + 6 names exactly */
+            overflow-y: auto;
+            padding: 0.4rem;
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        }
+        .kam-list::-webkit-scrollbar {
+            width: 4px;
+        }
+        .kam-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .kam-list::-webkit-scrollbar-thumb {
+            background: var(--bg-card);
+            border-radius: 10px;
+        }
+        .kam-list::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
         }
         .kam-item-chip {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0.6rem 0.75rem;
+            padding: 0.5rem 0.75rem;
             border-radius: 8px;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid var(--bg-card);
-            font-size: 0.85rem;
+            background: transparent;
+            border: 1px solid transparent;
+            font-size: 0.82rem;
             cursor: pointer;
             transition: all 0.2s;
             color: var(--text-secondary);
@@ -316,6 +388,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         }
 
         .sidebar-footer {
+            margin-top: auto;
             padding: 1rem 1.5rem;
             border-top: 1px solid var(--bg-card);
         }

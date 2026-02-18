@@ -15,12 +15,9 @@ export const addComment = async (item: ActionableItem, comment: string): Promise
     // Fetch latest notes to avoid overwriting
     let existing = item.displayNotes || "";
     try {
-        console.log(`Fetching latest record for ${item.id} (${item.source})...`);
         const freshRecord = await fetchRecord(item.id, item.source);
         if (freshRecord && freshRecord.fields) {
-            console.log("Fresh record fetched:", freshRecord.fields);
             existing = freshRecord.fields.internalWeekdayNotes || "";
-            console.log("Existing notes from Airtable:", existing);
         } else {
             console.warn("Fresh record fetch returned null or no fields.");
         }
@@ -30,8 +27,6 @@ export const addComment = async (item: ActionableItem, comment: string): Promise
 
     const newEntry = `[${now}] ${comment.trim()}`;
     const updatedComments = existing ? `${newEntry}\n${existing}` : newEntry;
-
-    console.log("Final updated comments payload:", updatedComments);
 
     const payload = {
         jdUid: item.jdUid,

@@ -19,7 +19,16 @@ export const fetchPostTBRRecords = async (): Promise<AirtableRecord[]> => {
     try {
         do {
             const url = `https://api.airtable.com/v0/${BASE_ID}/${POST_TBR_TABLE}?view=${encodeURIComponent(POST_TBR_VIEW)}${offset ? `&offset=${offset}` : ""}&pageSize=100`;
+
             const res = await fetch(url, { headers: { Authorization: API_KEY } });
+
+            if (!res.ok) {
+                console.error(`Post-TBR API Error: ${res.status} ${res.statusText}`);
+                const errorText = await res.text();
+                console.error("Error response:", errorText);
+                break;
+            }
+
             const json = await res.json();
 
             if (!json || !json.records) break;
@@ -45,6 +54,14 @@ export const fetchICRecords = async (): Promise<AirtableRecord[]> => {
             const url = `https://api.airtable.com/v0/${IC_BASE_ID}/${encodeURIComponent(IC_TABLE)}?view=${encodeURIComponent(IC_VIEW)}${offset ? `&offset=${offset}` : ""}&pageSize=100`;
 
             const res = await fetch(url, { headers: { Authorization: API_KEY } });
+
+            if (!res.ok) {
+                console.error(`IC API Error: ${res.status} ${res.statusText}`);
+                const errorText = await res.text();
+                console.error("Error response:", errorText);
+                break;
+            }
+
             const json = await res.json();
 
             if (!json || !json.records) break;

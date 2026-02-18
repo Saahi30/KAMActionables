@@ -1,4 +1,4 @@
-import { Search, Bell, Sun, Moon, X } from 'lucide-react';
+import { Search, Sun, Moon, X } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useDashboard } from '../../context/DashboardContext';
 
@@ -18,7 +18,7 @@ const Header: React.FC<HeaderProps> = ({ title }) => {
                     <Search size={16} className="search-icon" />
                     <input
                         type="text"
-                        placeholder="Search candidates..."
+                        placeholder="Search candidates or companies..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -33,10 +33,6 @@ const Header: React.FC<HeaderProps> = ({ title }) => {
             <div className="header-actions">
                 <button className="icon-btn theme-toggle" onClick={toggleTheme}>
                     {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-                </button>
-
-                <button className="icon-btn">
-                    <Bell size={20} />
                 </button>
             </div>
 
@@ -136,7 +132,6 @@ const Header: React.FC<HeaderProps> = ({ title }) => {
                 .theme-toggle:hover {
                     transform: scale(1.1) rotate(10deg);
                     background: var(--bg-overlay);
-                }
                 }
             `}</style>
         </header>

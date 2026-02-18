@@ -20,6 +20,7 @@ interface DashboardContextType {
     kamLeaderboard: KamStat[];
     searchQuery: string;
     setSearchQuery: (query: string) => void;
+    stats: { total: number; critical: number; attention: number; normal: number };
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -119,10 +120,20 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     const isNewItem = (item: ActionableItem) => {
         if (handledIds.has(item.id)) return false;
 
+        const today = new Date().toISOString().split("T")[0];
         const hasComments = (item.displayNotes && item.displayNotes.trim().length > 0) ||
             (item.schedulerNotes && item.schedulerNotes.trim().length > 0);
-        const hasSnooze = !!item.snoozeUntil;
-        return !hasComments && !hasSnooze;
+
+        const snoozeExpired = item.snoozeUntil && item.snoozeUntil <= today;
+        const hasActiveSnooze = item.snoozeUntil && item.snoozeUntil > today;
+
+        // An item is NEW if:
+        // 1. It has no comments AND no active snooze
+        // 2. OR it has an expired snooze (which takes priority over having comments)
+        if (snoozeExpired) return true;
+        if (hasActiveSnooze) return false;
+
+        return !hasComments;
     };
 
     // Memoized base actionables (only filters completed)
@@ -137,14 +148,37 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
         });
     }, [rawActionables, completedIds]);
 
-    // Derived state for all items currently filtered by Source and Search
+    // Derived state for all items currently filtered by Source, KAM, and Search
     const filteredBaseItems = React.useMemo(() => {
         return baseActionables.filter(item => {
+            // Priority 1: Source Filter
             if (activeSource !== 'ALL' && item.source !== activeSource) return false;
-            if (searchQuery && !item.candidateName.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+
+            // Priority 2: KAM Filter
+            if (selectedKam.length > 0 && !selectedKam.includes(item.kam)) return false;
+
+            // Priority 3: Snooze Filter (Items snoozed for the future are hidden)
+            if (item.snoozeUntil) {
+                const snoozeDate = new Date(item.snoozeUntil);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                if (snoozeDate > today) return false;
+            }
+
+            // Priority 4: Search Filter
+            if (searchQuery) {
+                const query = searchQuery.toLowerCase();
+                const matchesCandidate = item.candidateName.toLowerCase().includes(query);
+                const matchesCompany = item.company.toLowerCase().includes(query);
+                if (!matchesCandidate && !matchesCompany) return false;
+            }
+
+            // Priority 5: Minimum Pending Days (Hide items < 10 days as per KPI logic)
+            if (item.pendingDays < 10) return false;
+
             return true;
         });
-    }, [baseActionables, activeSource, searchQuery]);
+    }, [baseActionables, activeSource, selectedKam, searchQuery]);
 
     // Final actionables based on Active View (respects ALL vs NEW)
     const actionables = React.useMemo(() => {
@@ -153,6 +187,16 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
         return filteredBaseItems;
     }, [filteredBaseItems, activeView]);
+
+    // KPI Stats - now sensitive to Search and View filters
+    const stats = React.useMemo(() => {
+        return {
+            total: actionables.length,
+            critical: actionables.filter(i => i.pendingDays >= 45).length,
+            attention: actionables.filter(i => i.pendingDays >= 30 && i.pendingDays < 45).length,
+            normal: actionables.filter(i => i.pendingDays >= 10 && i.pendingDays < 30).length
+        };
+    }, [actionables]);
 
     useEffect(() => {
         refreshData();
@@ -189,7 +233,8 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
             markAsHandled,
             kamLeaderboard,
             searchQuery,
-            setSearchQuery
+            setSearchQuery,
+            stats
         }}>
             {children}
         </DashboardContext.Provider>
