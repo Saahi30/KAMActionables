@@ -13,9 +13,6 @@ export const normalizePostTBR = (records: AirtableRecord[]): ActionableItem[] =>
 
         const internalNotes = f.internalWeekdayNotes || f.weekdayComments || "";
 
-        // Skip completed items
-        if (/\[COMPLETED:\s*\d{4}-\d{2}-\d{2}\]/.test(internalNotes)) return null;
-
         // Use LAST snooze match (Retool appends, so newest snooze is at the bottom)
         const allSnoozeMatches = [...internalNotes.matchAll(/\[SNOOZE:\s*(\d{4}-\d{2}-\d{2})\]/g)];
         const snoozeMatch = allSnoozeMatches.length > 0 ? allSnoozeMatches[allSnoozeMatches.length - 1] : null;
@@ -43,7 +40,7 @@ export const normalizePostTBR = (records: AirtableRecord[]): ActionableItem[] =>
             snoozeUntil: snoozeMatch ? snoozeMatch[1] : null,
             raw: f
         };
-    }).filter((item): item is NonNullable<typeof item> => item !== null);
+    });
 };
 
 export const normalizeICData = (records: AirtableRecord[]): ActionableItem[] => {
@@ -110,9 +107,6 @@ export const normalizeICData = (records: AirtableRecord[]): ActionableItem[] => 
         const parts = [kamNotes, icNotes, slackLink].filter(Boolean);
         const displayNotes = parts.join("\n").trim();
 
-        // Skip completed items (check KAM notes where COMPLETED tag is written)
-        if (/\[COMPLETED:\s*\d{4}-\d{2}-\d{2}\]/.test(kamNotes)) return null;
-
         return {
             id: r.id,
             candidateName,
@@ -134,7 +128,7 @@ export const normalizeICData = (records: AirtableRecord[]): ActionableItem[] => 
             snoozeUntil: snoozeMatch ? snoozeMatch[1] : null,
             raw: f
         };
-    }).filter((item): item is NonNullable<typeof item> => item !== null);
+    });
 }
 
 export const mergeActionables = (baseItems: ActionableItem[], commentsRaw: any): ActionableItem[] => {
