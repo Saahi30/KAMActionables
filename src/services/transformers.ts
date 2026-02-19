@@ -11,7 +11,14 @@ export const normalizePostTBR = (records: AirtableRecord[]): ActionableItem[] =>
         else if (days >= 15) severity = "high";
         else if (days >= 10) severity = "medium";
 
-        const snoozeMatch = (f.internalWeekdayNotes || "").match(/\[SNOOZE:\s*(\d{4}-\d{2}-\d{2})\]/);
+        const internalNotes = f.internalWeekdayNotes || f.weekdayComments || "";
+
+        // Skip completed items
+        if (/\[COMPLETED:\s*\d{4}-\d{2}-\d{2}\]/.test(internalNotes)) return null;
+
+        // Use LAST snooze match (Retool appends, so newest snooze is at the bottom)
+        const allSnoozeMatches = [...internalNotes.matchAll(/\[SNOOZE:\s*(\d{4}-\d{2}-\d{2})\]/g)];
+        const snoozeMatch = allSnoozeMatches.length > 0 ? allSnoozeMatches[allSnoozeMatches.length - 1] : null;
 
         return {
             id: r.id,
@@ -26,17 +33,17 @@ export const normalizePostTBR = (records: AirtableRecord[]): ActionableItem[] =>
             kam: Array.isArray(f["Account Manager (from companyMapperViaUid) (from uidMapped)"])
                 ? (f["Account Manager (from companyMapperViaUid) (from uidMapped)"][0] || "")
                 : (f["Account Manager (from companyMapperViaUid) (from uidMapped)"] || ""),
-            source: "POST_TBR",
+            source: "POST_TBR" as const,
             jdUid: Number(f.jdUid),
             publicIdentifier: f.publicIdentifier || "",
             platformLink: f["Candidate Platform Link"] || "#",
             interviewProcessFinal: f["interviewProcessFinal"] || "",
             stage: f.conversationStatus || "",
-            displayNotes: f.internalWeekdayNotes || "", // Will be filled by merging with DB comments
+            displayNotes: f.internalWeekdayNotes || "",
             snoozeUntil: snoozeMatch ? snoozeMatch[1] : null,
             raw: f
         };
-    });
+    }).filter((item): item is NonNullable<typeof item> => item !== null);
 };
 
 export const normalizeICData = (records: AirtableRecord[]): ActionableItem[] => {
@@ -52,7 +59,11 @@ export const normalizeICData = (records: AirtableRecord[]): ActionableItem[] => 
         else if (days >= 15) severity = "high";
         else if (days >= 10) severity = "medium";
 
-        const snoozeMatch = (f.internalWeekdayNotes || f["Weekday POC"] || "").match(/\[SNOOZE:\s*(\d{4}-\d{2}-\d{2})\]/);
+        // KAM writes land in internalWeekdayNotes (same field as POST_TBR, via Weekday API)
+        // Use LAST snooze match — Retool appends, so newest snooze is at the bottom
+        const kamNotes = f.internalWeekdayNotes || "";
+        const allIcSnoozeMatches = [...kamNotes.matchAll(/\[SNOOZE:\s*(\d{4}-\d{2}-\d{2})\]/g)];
+        const snoozeMatch = allIcSnoozeMatches.length > 0 ? allIcSnoozeMatches[allIcSnoozeMatches.length - 1] : null;
 
         // Extract candidate name
         const candidateName = f.candidateName || f.Name || f["Candidate Name"] || "Unknown Candidate";
@@ -93,21 +104,14 @@ export const normalizeICData = (records: AirtableRecord[]): ActionableItem[] => 
             kam = Array.isArray(kamField) ? kamField[0] : kamField;
         }
 
-        // Extract and clean notes - remove URLs and format nicely
-        let rawNotes = f["Weekday POC"] || f.internalWeekdayNotes || f["IC Questions"] || f.notes || "";
+        // displayNotes = KAM comments (internalWeekdayNotes) + original IC notes + Slack link
+        const icNotes = f["IC Caller Notes"] || "";
+        const slackLink = f["Flagged Slack Link"] || "";
+        const parts = [kamNotes, icNotes, slackLink].filter(Boolean);
+        const displayNotes = parts.join("\n").trim();
 
-        // Clean up notes: remove URLs (Slack links, etc.)
-        let cleanNotes = rawNotes;
-        if (typeof cleanNotes === 'string') {
-            // Remove URLs (http/https links)
-            cleanNotes = cleanNotes.replace(/https?:\/\/[^\s]+/g, '');
-            // Remove extra whitespace
-            cleanNotes = cleanNotes.replace(/\s+/g, ' ').trim();
-            // Limit length for display
-            if (cleanNotes.length > 150) {
-                cleanNotes = cleanNotes.substring(0, 150) + '...';
-            }
-        }
+        // Skip completed items (check KAM notes where COMPLETED tag is written)
+        if (/\[COMPLETED:\s*\d{4}-\d{2}-\d{2}\]/.test(kamNotes)) return null;
 
         return {
             id: r.id,
@@ -118,19 +122,19 @@ export const normalizeICData = (records: AirtableRecord[]): ActionableItem[] => 
             pendingDays: days,
             severity,
             roleActive: f["isRoleActive? (from KAM JD Interface) (from jdUidMapper)"] ?? true,
-            schedulerNotes: f["Scheduler Notes"] || f["IC Caller Notes"] || "",
+            schedulerNotes: f["Scheduler Notes"] || "",
             kam,
-            source: "IC",
+            source: "IC" as const,
             jdUid: Number(f.jdUid || f["JD UID"] || 0),
             publicIdentifier: f.publicIdentifier || f["Public Identifier"] || "",
-            platformLink: f["Candidate Dashboard"] || f["Candidate Platform Link"] || "#",
+            platformLink: f["PF Link"] || f["Candidate Dashboard"] || f["Candidate Platform Link"] || "#",
             interviewProcessFinal: "",
             stage: f.conversationStatus || "",
-            displayNotes: cleanNotes,
+            displayNotes,
             snoozeUntil: snoozeMatch ? snoozeMatch[1] : null,
             raw: f
         };
-    });
+    }).filter((item): item is NonNullable<typeof item> => item !== null);
 }
 
 export const mergeActionables = (baseItems: ActionableItem[], commentsRaw: any): ActionableItem[] => {

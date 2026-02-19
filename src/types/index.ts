@@ -34,9 +34,7 @@ export interface CommentResponse {
     item: {
         jdUid: number;
         publicIdentifier: string;
-        data: {
-            internalWeekdayNotes: string;
-        };
+        data: Record<string, string>;
     };
 }
 

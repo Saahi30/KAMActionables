@@ -11,6 +11,10 @@ interface SidebarProps {
     kams: KamStat[];
     onKamChange: (kam: string) => void;
     onRefresh: () => void;
+    stats: {
+        viewCounts: { ALL: number; NEW: number };
+        sourceCounts: { ALL: number; POST_TBR: number; IC: number };
+    };
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -21,7 +25,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     selectedKam,
     kams,
     onKamChange,
-    onRefresh
+    onRefresh,
+    stats
 }) => {
     const [isKamListCollapsed, setIsKamListCollapsed] = useState(false);
 
@@ -34,81 +39,94 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
             </div>
 
-            <div className="sidebar-section">
-                <h3>Views</h3>
-                <div className="view-toggles">
-                    <button
-                        className={`view-btn ${activeView === 'NEW' ? 'active' : ''}`}
-                        onClick={() => onViewChange('NEW')}
-                    >
-                        <div className="view-btn-content">
-                            <Inbox size={16} />
-                            <span>New</span>
-                        </div>
-                    </button>
-                    <button
-                        className={`view-btn ${activeView === 'ALL' ? 'active' : ''}`}
-                        onClick={() => onViewChange('ALL')}
-                    >
-                        <div className="view-btn-content">
-                            <Eye size={16} />
-                            <span>All</span>
-                        </div>
-                    </button>
-                </div>
-            </div>
-
-            <div className="sidebar-section">
-                <h3>Source</h3>
-                <nav className="nav-menu">
-                    <div className="source-toggles">
+            <div className="sidebar-content">
+                <div className="sidebar-section">
+                    <h3>Views</h3>
+                    <div className="view-toggles">
                         <button
-                            className={`source-btn ${activeSource === 'ALL' ? 'active' : ''}`}
-                            onClick={() => onSourceChange('ALL')}
+                            className={`view-btn ${activeView === 'NEW' ? 'active' : ''}`}
+                            onClick={() => onViewChange('NEW')}
                         >
-                            <span>All</span>
-                        </button>
-                        <button
-                            className={`source-btn ${activeSource === 'POST_TBR' ? 'active' : ''}`}
-                            onClick={() => onSourceChange('POST_TBR')}
-                        >
-                            <span>Post-TBR</span>
-                        </button>
-                        <button
-                            className={`source-btn ${activeSource === 'IC' ? 'active' : ''}`}
-                            onClick={() => onSourceChange('IC')}
-                        >
-                            <span>IC</span>
-                        </button>
-                    </div>
-                </nav>
-            </div>
-
-            <div className="sidebar-section">
-                <div className="section-header clickable" onClick={() => setIsKamListCollapsed(!isKamListCollapsed)}>
-                    <div className="header-title-group">
-                        <h3>KAM List</h3>
-                        {isKamListCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-                    </div>
-                </div>
-                {!isKamListCollapsed && (
-                    <div className="kam-list">
-                        <div className={`kam-item-chip ${selectedKam.length === 0 ? 'active' : ''}`} onClick={() => onKamChange('ALL')}>
-                            <span className="kam-name">All KAMs</span>
-                            <span className="kam-count-total">{kams.reduce((sum, k) => sum + k.count, 0)}</span>
-                        </div>
-                        {kams.map((kam) => (
-                            <div
-                                key={kam.name}
-                                className={`kam-item-chip ${selectedKam.includes(kam.name) ? 'active' : ''}`}
-                                onClick={() => onKamChange(kam.name)}
-                            >
-                                <span className="kam-name">{kam.name || "Unassigned"}</span>
-                                <span className="kam-count-badge">{kam.count}</span>
+                            <div className="view-btn-content">
+                                <Inbox size={16} />
+                                <span>New</span>
+                                <span className="count-badge">{stats.viewCounts.NEW}</span>
                             </div>
-                        ))}
+                        </button>
+                        <button
+                            className={`view-btn ${activeView === 'ALL' ? 'active' : ''}`}
+                            onClick={() => onViewChange('ALL')}
+                        >
+                            <div className="view-btn-content">
+                                <Eye size={16} />
+                                <span>All</span>
+                                <span className="count-badge">{stats.viewCounts.ALL}</span>
+                            </div>
+                        </button>
                     </div>
-                )}
+                </div>
+
+                <div className="sidebar-section">
+                    <h3>Source</h3>
+                    <nav className="nav-menu">
+                        <div className="source-toggles">
+                            <button
+                                className={`source-btn ${activeSource === 'ALL' ? 'active' : ''}`}
+                                onClick={() => onSourceChange('ALL')}
+                            >
+                                <div className="source-btn-content">
+                                    <span>All</span>
+                                    <span className="source-count">{stats.sourceCounts.ALL}</span>
+                                </div>
+                            </button>
+                            <button
+                                className={`source-btn ${activeSource === 'POST_TBR' ? 'active' : ''}`}
+                                onClick={() => onSourceChange('POST_TBR')}
+                            >
+                                <div className="source-btn-content">
+                                    <span>Post-TBR</span>
+                                    <span className="source-count">{stats.sourceCounts.POST_TBR}</span>
+                                </div>
+                            </button>
+                            <button
+                                className={`source-btn ${activeSource === 'IC' ? 'active' : ''}`}
+                                onClick={() => onSourceChange('IC')}
+                            >
+                                <div className="source-btn-content">
+                                    <span>IC</span>
+                                    <span className="source-count">{stats.sourceCounts.IC}</span>
+                                </div>
+                            </button>
+                        </div>
+                    </nav>
+                </div>
+
+                <div className="sidebar-section">
+                    <div className="section-header clickable" onClick={() => setIsKamListCollapsed(!isKamListCollapsed)}>
+                        <div className="header-title-group">
+                            <h3>KAM List</h3>
+                            {isKamListCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                        </div>
+                    </div>
+                    {!isKamListCollapsed && (
+                        <div className="kam-list">
+                            <div className={`kam-item-chip ${selectedKam.length === 0 ? 'active' : ''}`} onClick={() => onKamChange('ALL')}>
+                                <span className="kam-name">All KAMs</span>
+                                <span className="kam-count-total">{kams.reduce((sum, k) => sum + k.count, 0)}</span>
+                            </div>
+                            {kams.map((kam) => (
+                                <div
+                                    key={kam.name}
+                                    className={`kam-item-chip ${selectedKam.includes(kam.name) ? 'active' : ''}`}
+                                    onClick={() => onKamChange(kam.name)}
+                                >
+                                    <span className="kam-name">{kam.name || "Unassigned"}</span>
+                                    <span className="kam-count-badge">{kam.count}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
 
             <div className="sidebar-footer">
@@ -140,26 +158,29 @@ const Sidebar: React.FC<SidebarProps> = ({
             font-weight: 600;
             font-size: 1.1rem;
         }
-        .sidebar-section {
-            padding: 0.15rem 1.5rem;
-            flex: 0 0 auto;
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            padding: 0.5rem 0;
         }
-        .sidebar-section:nth-of-type(3) {
-            flex: 0 0 auto;
-            min-height: 0;
-        }
-        .sidebar-section:nth-of-type(3)::-webkit-scrollbar {
+        .sidebar-content::-webkit-scrollbar {
             width: 4px;
         }
-        .sidebar-section:nth-of-type(3)::-webkit-scrollbar-track {
+        .sidebar-content::-webkit-scrollbar-track {
             background: transparent;
         }
-        .sidebar-section:nth-of-type(3)::-webkit-scrollbar-thumb {
+        .sidebar-content::-webkit-scrollbar-thumb {
             background: var(--bg-card);
             border-radius: 10px;
         }
-        .sidebar-section:nth-of-type(3)::-webkit-scrollbar-thumb:hover {
+        .sidebar-content::-webkit-scrollbar-thumb:hover {
             background: var(--text-secondary);
+        }
+        .sidebar-section {
+            padding: 0.15rem 1.5rem;
+            flex: 0 0 auto;
         }
         .sidebar-section h3 {
             font-size: 0.7rem;
@@ -266,6 +287,29 @@ const Sidebar: React.FC<SidebarProps> = ({
             font-weight: 600;
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
+        .source-btn-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+        .source-count {
+            font-size: 0.65rem;
+            opacity: 0.8;
+            font-weight: 400;
+        }
+        .count-badge {
+            background: var(--bg-card);
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            min-width: 20px;
+            text-align: center;
+        }
+        .view-btn.active .count-badge {
+            background: white;
+            color: var(--accent-primary);
+        }
         .nav-item {
             display: flex;
             align-items: center;
@@ -317,8 +361,6 @@ const Sidebar: React.FC<SidebarProps> = ({
             display: flex;
             flex-direction: column;
             gap: 0.2rem;
-            max-height: 335px; /* Fits All KAM + 6 names exactly */
-            overflow-y: auto;
             padding: 0.4rem;
             background: rgba(255, 255, 255, 0.01);
             border: 1px solid var(--bg-card);

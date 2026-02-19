@@ -16,11 +16,19 @@ interface DashboardContextType {
     setTimelineFilter: (filter: 'ALL' | '10_PLUS' | '30_PLUS' | '45_PLUS') => void;
     refreshData: (silent?: boolean) => Promise<void>;
     removeLocalItem: (id: string) => void;
+    updateLocalItem: (id: string, patch: Partial<ActionableItem>) => void;
     markAsHandled: (id: string) => void;
     kamLeaderboard: KamStat[];
     searchQuery: string;
     setSearchQuery: (query: string) => void;
-    stats: { total: number; critical: number; attention: number; normal: number };
+    stats: {
+        total: number;
+        critical: number;
+        attention: number;
+        normal: number;
+        viewCounts: { ALL: number; NEW: number };
+        sourceCounts: { ALL: number; POST_TBR: number; IC: number };
+    };
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -58,6 +66,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
             const postTbr = normalizePostTBR(postTbrRaw);
             const ic = normalizeICData(icRaw);
             const allItems = [...postTbr, ...ic];
+            console.warn(`[DIAGNOSTIC] Post-TBR: ${postTbr.length}, IC: ${ic.length}, Total: ${allItems.length}`);
 
             // 3. Cleanup completedIds and handledIds
             const fetchedIds = new Set(allItems.map(i => i.id));
@@ -116,56 +125,41 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
         });
     };
 
+    // Optimistic patch: instantly update a single item in local state
+    const updateLocalItem = (id: string, patch: Partial<ActionableItem>) => {
+        setRawActionables(prev =>
+            prev.map(item => item.id === id ? { ...item, ...patch } : item)
+        );
+    };
+
     // Helper to determine if an item is "New"
     const isNewItem = (item: ActionableItem) => {
         if (handledIds.has(item.id)) return false;
 
         const today = new Date().toISOString().split("T")[0];
-        const hasComments = (item.displayNotes && item.displayNotes.trim().length > 0) ||
-            (item.schedulerNotes && item.schedulerNotes.trim().length > 0);
+        const hasNotes = (item.displayNotes && item.displayNotes.trim().length > 0);
 
-        const snoozeExpired = item.snoozeUntil && item.snoozeUntil <= today;
-        const hasActiveSnooze = item.snoozeUntil && item.snoozeUntil > today;
+        // Check if snooze has expired (if it exists)
+        const snoozeExpired = !!(item.snoozeUntil && item.snoozeUntil <= today);
 
-        // An item is NEW if:
-        // 1. It has no comments AND no active snooze
-        // 2. OR it has an expired snooze (which takes priority over having comments)
-        if (snoozeExpired) return true;
-        if (hasActiveSnooze) return false;
-
-        return !hasComments;
+        // A truly "New" item has NO notes at all, OR its snooze has expired.
+        // The presence of a future snooze date implies there are notes (since we force notes on snooze),
+        // so it will naturally return false here.
+        return !hasNotes || snoozeExpired;
     };
 
     // Memoized base actionables (only filters completed)
     const baseActionables = React.useMemo(() => {
-        return rawActionables.filter(item => {
-            // Priority 1: Check if it's in our local "just completed" set
-            if (completedIds.has(item.id)) return false;
+        return rawActionables;
+    }, [rawActionables]);
 
-            // Priority 2: Check if the Airtable data already has the completed marker
-            const notes = item.displayNotes || "";
-            return !notes.match(/\[COMPLETED:\s*\d{4}-\d{2}-\d{2}\]/);
-        });
-    }, [rawActionables, completedIds]);
-
-    // Derived state for all items currently filtered by Source, KAM, and Search
-    const filteredBaseItems = React.useMemo(() => {
+    // 1. Source and Search Filter
+    const sourceSearchFilteredItems = React.useMemo(() => {
         return baseActionables.filter(item => {
             // Priority 1: Source Filter
             if (activeSource !== 'ALL' && item.source !== activeSource) return false;
 
-            // Priority 2: KAM Filter
-            if (selectedKam.length > 0 && !selectedKam.includes(item.kam)) return false;
-
-            // Priority 3: Snooze Filter (Items snoozed for the future are hidden)
-            if (item.snoozeUntil) {
-                const snoozeDate = new Date(item.snoozeUntil);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                if (snoozeDate > today) return false;
-            }
-
-            // Priority 4: Search Filter
+            // Priority 2: Search Filter
             if (searchQuery) {
                 const query = searchQuery.toLowerCase();
                 const matchesCandidate = item.candidateName.toLowerCase().includes(query);
@@ -173,40 +167,103 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
                 if (!matchesCandidate && !matchesCompany) return false;
             }
 
-            // Priority 5: Minimum Pending Days (Hide items < 10 days as per KPI logic)
-            if (item.pendingDays < 10) return false;
-
             return true;
         });
-    }, [baseActionables, activeSource, selectedKam, searchQuery]);
+    }, [baseActionables, activeSource, searchQuery]);
 
-    // Final actionables based on Active View (respects ALL vs NEW)
-    const actionables = React.useMemo(() => {
+    // 2. View Filter (All vs New)
+    const viewFilteredItems = React.useMemo(() => {
         if (activeView === 'NEW') {
-            return filteredBaseItems.filter(isNewItem);
+            return sourceSearchFilteredItems.filter(isNewItem);
         }
-        return filteredBaseItems;
-    }, [filteredBaseItems, activeView]);
+        return sourceSearchFilteredItems;
+    }, [sourceSearchFilteredItems, activeView, handledIds]);
 
-    // KPI Stats - now sensitive to Search and View filters
+    // 3. Final actionables (Dashboard content) - Filter by selected KAM
+    const actionables = React.useMemo(() => {
+        if (selectedKam.length > 0) {
+            return viewFilteredItems.filter(item => {
+                const itemKam = item.kam || "Unassigned";
+                return selectedKam.includes(itemKam);
+            });
+        }
+        return viewFilteredItems;
+    }, [viewFilteredItems, selectedKam]);
+
+    // KPI Stats - Pinned to current filter context
     const stats = React.useMemo(() => {
+        // Base for KPI cards: respects Source + KAM + Search (but allows View switching via cards)
+        const kpiBase = baseActionables.filter(item => {
+            if (activeSource !== 'ALL' && item.source !== activeSource) return false;
+            if (selectedKam.length > 0) {
+                const itemKam = item.kam || "Unassigned";
+                if (!selectedKam.includes(itemKam)) return false;
+            }
+            if (searchQuery) {
+                const query = searchQuery.toLowerCase();
+                const matchesCandidate = item.candidateName.toLowerCase().includes(query);
+                const matchesCompany = item.company.toLowerCase().includes(query);
+                if (!matchesCandidate && !matchesCompany) return false;
+            }
+            return true;
+        });
+
+        // Base for View Toggles: respects Source + KAM + Search
+        const viewBase = baseActionables.filter(item => {
+            if (activeSource !== 'ALL' && item.source !== activeSource) return false;
+            if (selectedKam.length > 0) {
+                const itemKam = item.kam || "Unassigned";
+                if (!selectedKam.includes(itemKam)) return false;
+            }
+            if (searchQuery) {
+                const query = searchQuery.toLowerCase();
+                if (!item.candidateName.toLowerCase().includes(query) &&
+                    !item.company.toLowerCase().includes(query)) return false;
+            }
+            return true;
+        });
+
+        // Base for Source Toggles: respects View + KAM + Search
+        const sourceBase = baseActionables.filter(item => {
+            if (activeView === 'NEW' && !isNewItem(item)) return false;
+            if (selectedKam.length > 0) {
+                const itemKam = item.kam || "Unassigned";
+                if (!selectedKam.includes(itemKam)) return false;
+            }
+            if (searchQuery) {
+                const query = searchQuery.toLowerCase();
+                if (!item.candidateName.toLowerCase().includes(query) &&
+                    !item.company.toLowerCase().includes(query)) return false;
+            }
+            return true;
+        });
+
         return {
-            total: actionables.length,
-            critical: actionables.filter(i => i.pendingDays >= 45).length,
-            attention: actionables.filter(i => i.pendingDays >= 30 && i.pendingDays < 45).length,
-            normal: actionables.filter(i => i.pendingDays >= 10 && i.pendingDays < 30).length
+            total: kpiBase.length,
+            critical: kpiBase.filter(i => i.pendingDays >= 45).length,
+            attention: kpiBase.filter(i => i.pendingDays >= 30 && i.pendingDays < 45).length,
+            normal: kpiBase.filter(i => i.pendingDays >= 10 && i.pendingDays < 30).length,
+            viewCounts: {
+                ALL: viewBase.length,
+                NEW: viewBase.filter(isNewItem).length
+            },
+            sourceCounts: {
+                ALL: sourceBase.length,
+                POST_TBR: sourceBase.filter(i => i.source === 'POST_TBR').length,
+                IC: sourceBase.filter(i => i.source === 'IC').length
+            }
         };
-    }, [actionables]);
+    }, [baseActionables, activeSource, activeView, selectedKam, searchQuery, handledIds]);
 
     useEffect(() => {
         refreshData();
     }, []);
 
-    // Derived state for KAM leaderboard (respects source, search, AND activeView)
+    // Derived state for KAM leaderboard (respects source, search, AND activeView but NOT selectedKam)
     const kamLeaderboard = React.useMemo(() => {
         const counts: Record<string, number> = {};
 
-        actionables.forEach(item => {
+        viewFilteredItems.forEach(item => {
             const kamName = item.kam || "Unassigned";
             counts[kamName] = (counts[kamName] || 0) + 1;
         });
@@ -214,7 +271,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
         return Object.entries(counts)
             .map(([name, count]) => ({ name, count }))
             .sort((a, b) => b.count - a.count);
-    }, [actionables]);
+    }, [viewFilteredItems]);
 
     return (
         <DashboardContext.Provider value={{
@@ -230,6 +287,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
             setTimelineFilter,
             refreshData,
             removeLocalItem,
+            updateLocalItem,
             markAsHandled,
             kamLeaderboard,
             searchQuery,

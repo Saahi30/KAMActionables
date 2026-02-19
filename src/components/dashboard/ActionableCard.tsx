@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import type { ActionableItem } from '../../types';
-import { Loader2, Check, Calendar } from 'lucide-react';
+import { Loader2, Check, Calendar, ExternalLink } from 'lucide-react';
 
 interface ActionableCardProps {
     item: ActionableItem;
     onSnooze: (item: ActionableItem) => void;
     onComplete: (item: ActionableItem) => Promise<void>;
+    onViewNotes: (item: ActionableItem) => void;
 }
 
-const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onComplete }) => {
+const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onComplete, onViewNotes }) => {
     const [isCompleting, setIsCompleting] = useState(false);
 
     const handleCompleteClick = async () => {
@@ -51,7 +52,17 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
         : null;
 
     return (
-        <div className={`actionable-card ${isSnoozeExpired ? 'snooze-expired-mode' : ''}`} style={{ borderLeftColor: borderColor }}>
+        <div
+            className="actionable-card"
+            style={{
+                borderLeftColor: borderColor,
+                ...(isSnoozeExpired ? {
+                    border: '1px solid var(--danger)',
+                    borderLeftWidth: '4px',
+                    background: 'rgba(239, 68, 68, 0.05)'
+                } : {})
+            }}
+        >
             <div className="card-layout">
                 {/* Left Column: Days & Platform */}
                 <div className="left-col">
@@ -59,9 +70,6 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
                         <span className="days-number">{item.pendingDays}</span>
                         <span className="days-label">Days</span>
                     </div>
-                    <a href={item.platformLink} target="_blank" rel="noopener noreferrer" className="platform-pill" title="Open Platform">
-                        Platform
-                    </a>
                 </div>
 
                 {/* Right Column: Content */}
@@ -90,38 +98,40 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
                         </div>
                     </div>
 
-                    <div className="latest-note-pill">
-                        <p>{(() => {
-                            if (!item.displayNotes) return '';
-                            const lastLine = item.displayNotes.split('\n').pop() || '';
-                            // Remove [YYYY-MM-DD], [SNOOZE: ...], or [COMPLETED: ...]
-                            return lastLine
-                                .replace(/^\[\d{4}-\d{2}-\d{2}\]\s*/, '') // Remove date
-                                .replace(/\[SNOOZE:.*?\]\s*/, '')        // Remove snooze marker
-                                .replace(/\[COMPLETED:.*?\]\s*/, '')    // Remove completed marker
-                                .trim();
-                        })()}</p>
+                    <div
+                        className="latest-note-pill"
+                        style={{ height: 'auto', minHeight: '40px', alignItems: 'flex-start', cursor: 'pointer' }}
+                        onClick={() => onViewNotes(item)}
+                        title="Click to view full notes"
+                    >
+                        <p style={{ whiteSpace: 'pre-wrap', fontSize: '0.7rem', lineHeight: '1.2' }}>
+                            {item.displayNotes || ''}
+                        </p>
                     </div>
 
                     <div className="card-actions">
+                        <a href={item.platformLink} target="_blank" rel="noopener noreferrer" className="action-btn platform-btn" title="Open Platform">
+                            <ExternalLink size={14} />
+                            Platform
+                        </a>
                         <button className="action-btn snooze-btn" onClick={() => onSnooze(item)}>
                             <Calendar size={14} />
                             Snooze
                         </button>
                         <button
-                            className={`complete-btn ${isCompleting ? 'loading' : ''}`}
+                            className={`action-btn complete-btn ${isCompleting ? 'loading' : ''}`}
                             onClick={handleCompleteClick}
                             disabled={isCompleting}
                         >
                             {isCompleting ? (
                                 <>
                                     <Loader2 size={14} className="spin" />
-                                    Completing...
+                                    Wait...
                                 </>
                             ) : (
                                 <>
                                     <Check size={14} />
-                                    Complete
+                                    Done
                                 </>
                             )}
                         </button>
@@ -136,15 +146,44 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
                     border-left: 4px solid; 
                     border-radius: 12px;
                     padding: 0.6rem;
-                    min-width: 300px;
-                    width: fit-content;
-                    max-width: 500px; 
-                    min-height: 140px;
+                    min-width: 360px; 
+                    width: 360px;
+                    height: 220px;
                     display: flex;
                     flex-direction: column;
                     scroll-snap-align: start;
                     transition: transform 0.2s, box-shadow 0.2s;
                     position: relative;
+                    box-sizing: border-box;
+                }
+                
+                .right-col {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.4rem;
+                    min-width: 0;
+                    height: 100%;
+                    overflow: hidden;
+                }
+
+                .latest-note-pill {
+                    background: rgba(0,0,0,0.03);
+                    border: 1px solid rgba(0,0,0,0.08); 
+                    border-radius: 6px;
+                    padding: 6px 8px;
+                    flex: 1;
+                    min-height: 0; 
+                    overflow-y: auto;
+                    display: block;
+                    margin-bottom: 2px;
+                }
+                .latest-note-pill p {
+                    margin: 0;
+                    font-size: 0.7rem;
+                    font-weight: 500;
+                    color: var(--text-primary);
+                    white-space: pre-wrap;
                 }
                 .snooze-expired-mode {
                     border: 1px solid var(--danger) !important;
@@ -154,13 +193,13 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
                 .expired-pill {
                     background: var(--danger);
                     color: white;
-                    font-size: 0.55rem;
+                    font-size: 0.6rem;
                     font-weight: 800;
                     display: inline-flex;
-                    padding: 1px 6px;
+                    padding: 2px 8px;
                     border-radius: 4px;
                     letter-spacing: 0.05em;
-                    margin-bottom: 0.2rem;
+                    margin-bottom: 0.4rem;
                     text-transform: uppercase;
                     width: fit-content;
                 }
@@ -172,36 +211,38 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
                     gap: 0.75rem;
                 }
                 .snooze-countdown {
-                    font-size: 0.65rem;
+                    font-size: 0.7rem;
                     font-weight: 700;
                     color: #3b82f6;
                     background: rgba(59, 130, 246, 0.1);
-                    padding: 1px 5px;
+                    padding: 2px 6px;
                     border-radius: 4px;
                     white-space: nowrap;
                 }
                 .actionable-card:hover {
-                    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+                    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+                    transform: translateY(-2px);
                 }
                 .card-layout {
                     display: flex;
-                    gap: 0.6rem;
+                    gap: 0.8rem;
                     flex: 1;
+                    overflow: hidden;
                 }
                 
-                /* Left Column */
                 .left-col {
                     display: flex;
                     flex-direction: column;
-                    gap: 0.4rem;
+                    gap: 0.5rem;
                     align-items: center;
-                    width: 45px;
+                    width: 50px;
+                    flex-shrink: 0;
                 }
                 .days-box {
-                    width: 42px;
-                    height: 42px;
+                    width: 48px;
+                    height: 48px;
                     border: 2px solid;
-                    border-radius: 6px;
+                    border-radius: 8px;
                     display: flex;
                     flex-direction: column;
                     align-items: center;
@@ -209,164 +250,121 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
                     background: var(--bg-overlay);
                 }
                 .days-number {
-                    font-size: 0.85rem;
+                    font-size: 1rem;
                     font-weight: 800;
                     line-height: 1;
                     color: var(--text-primary);
                 }
                 .days-label {
-                    font-size: 0.45rem;
-                    font-weight: 600;
+                    font-size: 0.5rem;
+                    font-weight: 700;
                     text-transform: uppercase;
                     color: var(--text-secondary);
                     margin-top: 1px;
                 }
-                .platform-pill {
-                    margin-top: auto;
-                    padding: 4px 8px;
-                    border-radius: 20px;
-                    background: #f472b6; /* Pink color from image */
-                    color: black;
-                    font-size: 0.65rem;
-                    font-weight: 700;
-                    text-decoration: none;
-                    text-align: center;
-                    width: 100%;
-                    transition: opacity 0.2s;
-                }
-                .platform-pill:hover {
-                    opacity: 0.9;
-                }
-
-                /* Right Column */
-                .right-col {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.5rem;
-                    min-width: fit-content; /* Ensure it grows with content */
-                }
+                
                 .content-top {
                     display: flex;
                     flex-direction: column;
-                    gap: 0.1rem;
+                    gap: 0.15rem;
+                    flex-shrink: 0;
                 }
                 .candidate-name {
                     margin: 0;
                     font-size: 0.95rem;
-                    font-weight: 800;
+                    font-weight: 700;
                     color: var(--text-primary);
-                    letter-spacing: -0.01em;
-                    line-height: 1.1;
-                    display: block;
-                    word-break: break-word;
+                    line-height: 1.2;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
                 }
                 .company-role {
                     display: flex;
-                    flex-wrap: wrap;
                     align-items: center;
-                    gap: 4px;
+                    gap: 6px;
                     font-size: 0.75rem;
                     color: var(--text-secondary);
-                    font-weight: 500;
-                    margin-top: 1px;
-                }
-                .company, .role {
                     white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
                 }
-                .company {
-                    color: var(--text-primary);
-                    opacity: 0.8;
+                .company-role span {
+                    overflow: hidden;
+                    text-overflow: ellipsis;
                 }
-                .role {
-                    flex-shrink: 2; /* Prioritize showing company over role if space is tight */
-                }
-                .dot {
-                    color: var(--text-secondary);
-                    opacity: 0.5;
-                    font-size: 0.8rem;
-                }
+                .dot { opacity: 0.5; }
+
                 .status-container {
-                    height: 20px;
+                    min-height: 20px;
                     display: flex;
                     align-items: center;
+                    margin-top: 1px;
+                    flex-shrink: 0;
                 }
                 .status-pill {
                     font-size: 0.65rem;
-                    font-weight: 700;
-                    padding: 1px 6px;
+                    font-weight: 600;
+                    padding: 1px 8px;
                     border-radius: 12px;
-                    align-self: flex-start;
                     white-space: nowrap;
                     overflow: hidden;
                     text-overflow: ellipsis;
+                    max-width: 100%;
                 }
 
-                .latest-note-pill {
-                    background: var(--bg-overlay);
-                    padding: 4px 10px;
-                    border-radius: 6px;
-                    border: 1px solid var(--bg-card);
-                    align-self: stretch;
-                    min-height: 28px;
-                    display: flex;
-                    align-items: center;
+                .latest-note-pill::-webkit-scrollbar {
+                    width: 4px;
                 }
-                .latest-note-pill p {
-                    margin: 0;
-                    font-size: 0.75rem;
-                    font-weight: 500;
-                    color: var(--text-primary);
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
+                .latest-note-pill::-webkit-scrollbar-thumb {
+                    background: rgba(0,0,0,0.2);
+                    border-radius: 4px;
                 }
 
                 .card-actions {
                     display: flex;
                     gap: 0.5rem;
                     margin-top: auto;
-                    padding-top: 0.4rem;
+                    padding-top: 0.2rem;
+                    flex-shrink: 0;
                 }
                 .action-btn {
-                    padding: 6px 12px;
+                    flex: 1;
+                    padding: 6px 4px;
                     border-radius: 6px;
-                    border: 1px solid var(--bg-card);
-                    background: var(--bg-overlay);
-                    color: var(--text-primary);
+                    border: 1px solid transparent;
                     cursor: pointer;
                     display: flex;
                     align-items: center;
                     justify-content: center;
+                    gap: 4px;
                     font-size: 0.75rem;
                     font-weight: 600;
                     transition: all 0.2s;
+                    white-space: nowrap;
+                    min-width: 0;
+                }
+                .platform-btn {
+                    color: #ec4899;
+                    background: rgba(236, 72, 153, 0.1);
+                    text-decoration: none;
+                }
+                .platform-btn:hover {
+                    background: #ec4899;
+                    color: white;
                 }
                 .snooze-btn {
                     color: #3b82f6;
-                    border-color: rgba(59, 130, 246, 0.3);
-                    background: rgba(59, 130, 246, 0.05);
-                    gap: 0.4rem;
+                    background: rgba(59, 130, 246, 0.1);
                 }
                 .snooze-btn:hover {
                     background: #3b82f6;
                     color: white;
-                    border-color: #3b82f6;
                 }
                 .complete-btn {
-                    margin-left: auto;
-                    padding: 6px 12px;
                     background: rgba(16, 185, 129, 0.1);
                     color: var(--success);
                     border: 1px solid rgba(16, 185, 129, 0.2);
-                    border-radius: 6px;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    gap: 0.4rem;
-                    font-size: 0.75rem;
-                    font-weight: 700;
-                    transition: all 0.2s;
                 }
                 .complete-btn:hover {
                     background: var(--success);
@@ -375,9 +373,8 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
                 .complete-btn.loading {
                     position: relative;
                     overflow: hidden;
-                    background: rgba(16, 185, 129, 0.2);
-                    border-color: var(--success);
                     cursor: not-allowed;
+                    opacity: 0.8;
                 }
                 .complete-btn.loading::after {
                     content: '';

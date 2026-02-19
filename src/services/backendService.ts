@@ -12,21 +12,29 @@ export const addComment = async (item: ActionableItem, comment: string): Promise
 
     const now = new Date().toISOString().split("T")[0];
 
-    // Fetch latest notes to avoid overwriting
+    // The Weekday backend API always uses "internalWeekdayNotes" for both IC and POST_TBR.
+    // Writing to any other field name is silently ignored by the API.
+    console.log(`[addComment] Source: ${item.source} | jdUid=${item.jdUid} | publicIdentifier=${item.publicIdentifier}`);
+
+    // Fetch latest notes from backend to avoid overwriting concurrent changes
     let existing = item.displayNotes || "";
     try {
         const freshRecord = await fetchRecord(item.id, item.source);
+        console.log(`[addComment] Fresh record fields:`, freshRecord?.fields);
         if (freshRecord && freshRecord.fields) {
             existing = freshRecord.fields.internalWeekdayNotes || "";
+            console.log(`[addComment] Existing internalWeekdayNotes:`, existing);
         } else {
-            console.warn("Fresh record fetch returned null or no fields.");
+            console.warn("[addComment] Fresh record returned null — using local displayNotes as fallback");
         }
     } catch (e) {
-        console.warn("Could not fetch fresh notes, using local state", e);
+        console.warn("[addComment] Could not fetch fresh notes, using local state", e);
     }
 
+    // Append style (matches Retool): new entry goes at the BOTTOM so oldest is first
     const newEntry = `[${now}] ${comment.trim()}`;
-    const updatedComments = existing ? `${newEntry}\n${existing}` : newEntry;
+    const updatedComments = existing ? `${existing}\n${newEntry}` : newEntry;
+    console.log(`[addComment] Updated notes:`, updatedComments);
 
     const payload = {
         jdUid: item.jdUid,
@@ -35,6 +43,7 @@ export const addComment = async (item: ActionableItem, comment: string): Promise
             internalWeekdayNotes: updatedComments
         }
     };
+    console.log(`[addComment] Sending payload:`, JSON.stringify(payload, null, 2));
 
     try {
         const response = await fetch(UPDATE_REPLIES_URL, {
@@ -46,13 +55,12 @@ export const addComment = async (item: ActionableItem, comment: string): Promise
             body: JSON.stringify(payload)
         });
 
-        if (!response.ok) {
-            throw new Error(`API error: ${response.statusText}`);
-        }
+        const responseText = await response.text();
+        console.log(`[addComment] API ${response.status}:`, responseText.slice(0, 300));
 
-        // The user's snippet doesn't show the actual response format of the fetch, 
-        // but the wrapper returns a success object. We'll assume the API returns JSON or we just return success.
-        // For now, let's return the structured response the UI expects.
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status} ${response.statusText} — ${responseText}`);
+        }
 
         return {
             success: true,
@@ -61,7 +69,7 @@ export const addComment = async (item: ActionableItem, comment: string): Promise
         };
 
     } catch (error) {
-        console.error("Error adding comment:", error);
+        console.error("[addComment] Error:", error);
         throw error;
     }
 };

@@ -10,7 +10,7 @@ interface ActionModalProps {
 }
 
 const ActionModal: React.FC<ActionModalProps> = ({ item, onClose }) => {
-    const { refreshData, markAsHandled } = useDashboard();
+    const { markAsHandled, updateLocalItem } = useDashboard();
     const [comment, setComment] = useState('');
     const [loading, setLoading] = useState(false);
     const [snoozeDate, setSnoozeDate] = useState('');
@@ -30,31 +30,45 @@ const ActionModal: React.FC<ActionModalProps> = ({ item, onClose }) => {
             return;
         }
 
-        // If no snooze and no comment, we can just close or require comment
         if (!hasSnooze && !trimmedComment) {
             setError('Please add a comment or select a snooze date.');
             return;
         }
 
+        const now = new Date().toISOString().split('T')[0];
+        const finalComment = hasSnooze
+            ? `[SNOOZE: ${snoozeDate}] ${trimmedComment}`
+            : trimmedComment;
+        const newEntry = `[${now}] ${finalComment}`;
+
+        // ── OPTIMISTIC UPDATE ──────────────────────────────────────────
+        // Append style (matches Retool + backendService): new entry at BOTTOM
+        const optimisticNotes = item.displayNotes
+            ? `${item.displayNotes}\n${newEntry}`
+            : newEntry;
+
+        updateLocalItem(item.id, {
+            displayNotes: optimisticNotes,
+            ...(hasSnooze ? { snoozeUntil: snoozeDate } : {})
+        });
+        markAsHandled(item.id);
+        onClose(); // Close modal immediately — user sees the update on the card
+        // ───────────────────────────────────────────────────────────────
+
         setLoading(true);
         try {
-            // Optimistic update for New view
-            markAsHandled(item.id);
-
-            if (hasSnooze) {
-                const snoozeComment = `[SNOOZE: ${snoozeDate}] ${trimmedComment}`;
-                await addComment(item, snoozeComment);
-            } else {
-                await addComment(item, trimmedComment);
-            }
-
-            // Refresh data in background
-            refreshData(true);
-            onClose();
+            await addComment(item, finalComment);
+            // No refreshData here — the Weekday backend→Airtable sync takes a few minutes.
+            // Fetching from Airtable immediately would return stale data and overwrite
+            // the optimistic patch above. The UI is already correct. On next page load
+            // Airtable will have the correct synced data.
         } catch (error) {
-            setError('Failed to update: ' + error);
-            // Optionally could rollback the markAsHandled if we had a rollback mechanism, 
-            // but refreshData will eventually correct it anyway.
+            console.error('Failed to save comment, rolling back optimistic update:', error);
+            // Rollback: restore original state on failure
+            updateLocalItem(item.id, {
+                displayNotes: item.displayNotes,
+                snoozeUntil: item.snoozeUntil
+            });
         } finally {
             setLoading(false);
         }

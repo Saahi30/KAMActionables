@@ -16,7 +16,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         selectedKam,
         setSelectedKam,
         kamLeaderboard,
-        refreshData
+        refreshData,
+        stats
     } = useDashboard();
 
     const handleKamChange = (kam: string) => {
@@ -44,6 +45,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 kams={kamLeaderboard}
                 onKamChange={handleKamChange}
                 onRefresh={refreshData}
+                stats={stats}
             />
             <div className="main-content">
                 <Header title={activeSource === 'ALL' ? 'All Actionables' : activeSource === 'POST_TBR' ? 'Post TBR' : 'IC Actionables'} />
