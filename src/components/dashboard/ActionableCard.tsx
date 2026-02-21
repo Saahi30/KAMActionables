@@ -13,7 +13,7 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
     const [isCompleting, setIsCompleting] = useState(false);
 
     const handleCompleteClick = async () => {
-        if (!confirm(`Mark ${item.candidateName} as complete?`)) return;
+        if (!confirm(`Submit ${item.candidateName} as done? This will add a date stamp and remove the card.`)) return;
 
         setIsCompleting(true);
         // Delay for 4 seconds to allow the slow "filling" animation to play

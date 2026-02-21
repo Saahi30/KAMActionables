@@ -88,7 +88,7 @@ export const markItemComplete = async (item: ActionableItem): Promise<boolean> =
         console.warn("Could not fetch fresh notes for completion, using local state", e);
     }
 
-    const marker = `[COMPLETED: ${today}]`;
+    const marker = `[SUBMITTED: ${today}]`;
     const updatedComments = existing ? `${existing}\n${marker}` : marker;
 
     const payload = {

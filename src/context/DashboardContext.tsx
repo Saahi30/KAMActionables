@@ -148,10 +148,10 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
         return !hasNotes || snoozeExpired;
     };
 
-    // Memoized base actionables (only filters completed)
+    // Memoized base actionables — filters out optimistically removed (completed) items
     const baseActionables = React.useMemo(() => {
-        return rawActionables;
-    }, [rawActionables]);
+        return rawActionables.filter(item => !completedIds.has(item.id));
+    }, [rawActionables, completedIds]);
 
     // 1. Source and Search Filter
     const sourceSearchFilteredItems = React.useMemo(() => {

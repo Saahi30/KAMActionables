@@ -109,7 +109,7 @@ const Dashboard: React.FC = () => {
             await markItemComplete(item);
 
             // Step 3: Show success notification immediately
-            showNotification(`${item.candidateName} marked as complete!`);
+            showNotification(`${item.candidateName} submitted! ✅`);
 
             // Step 4: Delayed silent refresh to ensure data consistency
             // Wait 5 seconds for Airtable/SQL to propagate the changes

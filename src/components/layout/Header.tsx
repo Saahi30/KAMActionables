@@ -1,4 +1,5 @@
-import { Search, Sun, Moon, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Sun, Moon, X, RefreshCw } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useDashboard } from '../../context/DashboardContext';
 
@@ -8,7 +9,18 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ title }) => {
     const { theme, toggleTheme } = useTheme();
-    const { searchQuery, setSearchQuery } = useDashboard();
+    const { searchQuery, setSearchQuery, refreshData } = useDashboard();
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const handleRefresh = async () => {
+        if (isRefreshing) return;
+        setIsRefreshing(true);
+        try {
+            await refreshData(true); // silent refresh — no loading screen
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
 
     return (
         <header className="header">
@@ -31,6 +43,14 @@ const Header: React.FC<HeaderProps> = ({ title }) => {
             </div>
 
             <div className="header-actions">
+                <button
+                    className={`icon-btn refresh-btn ${isRefreshing ? 'spinning' : ''}`}
+                    onClick={handleRefresh}
+                    title="Refresh data"
+                    disabled={isRefreshing}
+                >
+                    <RefreshCw size={18} />
+                </button>
                 <button className="icon-btn theme-toggle" onClick={toggleTheme}>
                     {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
                 </button>
@@ -132,6 +152,26 @@ const Header: React.FC<HeaderProps> = ({ title }) => {
                 .theme-toggle:hover {
                     transform: scale(1.1) rotate(10deg);
                     background: var(--bg-overlay);
+                }
+                .refresh-btn {
+                    background: var(--bg-card);
+                    color: var(--accent-primary, #3b82f6);
+                    border: 1px solid var(--bg-overlay);
+                }
+                .refresh-btn:hover:not(:disabled) {
+                    transform: scale(1.1);
+                    background: var(--bg-overlay);
+                }
+                .refresh-btn:disabled {
+                    cursor: not-allowed;
+                    opacity: 0.7;
+                }
+                .refresh-btn.spinning svg {
+                    animation: spin-refresh 0.8s linear infinite;
+                }
+                @keyframes spin-refresh {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
                 }
             `}</style>
         </header>
