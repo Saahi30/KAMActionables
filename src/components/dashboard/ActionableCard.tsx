@@ -25,9 +25,9 @@ const ActionableCard: React.FC<ActionableCardProps> = ({ item, onSnooze, onCompl
 
     const getSeverityColor = (s: string) => {
         switch (s) {
-            case 'extreme': return 'var(--danger)';      // Red for 45+
+            case 'extreme': return 'var(--danger)';      // Red for >45
             case 'critical': return 'var(--warning)';    // Golden for 30-44
-            case 'high': return 'var(--success)';        // Green for 15-29 (Normal)
+            case 'high': return 'var(--success)';        // Green for <30 (Normal)
             default: return 'var(--success)';            // Green for Others
         }
     };

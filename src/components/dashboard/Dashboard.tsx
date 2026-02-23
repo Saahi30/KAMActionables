@@ -134,7 +134,7 @@ const Dashboard: React.FC = () => {
             <div className="swimlanes">
                 <div className="swimlane critical">
                     <div className="swimlane-header critical">
-                        <h3>Critical (45+ Days)</h3>
+                        <h3>Critical ({'>'}45 Days)</h3>
                     </div>
                     <div className="card-list">
                         {criticalItems.map(item => (
@@ -170,7 +170,7 @@ const Dashboard: React.FC = () => {
 
                 <div className="swimlane normal">
                     <div className="swimlane-header normal">
-                        <h3>Normal (10-29 Days)</h3>
+                        <h3>Normal ({'<'}30 Days)</h3>
                     </div>
                     <div className="card-list">
                         {normalItems.map(item => (

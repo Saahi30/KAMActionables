@@ -6,9 +6,9 @@ const KPISection: React.FC = () => {
 
     const cards = [
         { id: 'ALL', label: 'Total Pending', value: stats.total, color: 'var(--text-primary)', bg: 'var(--bg-card)' },
-        { id: '45_PLUS', label: 'Critical (45+ Days)', value: stats.critical, color: 'var(--danger)', bg: 'rgba(239, 68, 68, 0.1)' },
+        { id: '45_PLUS', label: 'Critical (>45 Days)', value: stats.critical, color: 'var(--danger)', bg: 'rgba(239, 68, 68, 0.1)' },
         { id: '30_PLUS', label: 'Attention (30+ Days)', value: stats.attention, color: 'var(--warning)', bg: 'rgba(250, 204, 21, 0.1)' },
-        { id: '10_PLUS', label: 'Normal (10+ Days)', value: stats.normal, color: 'var(--success)', bg: 'rgba(6, 78, 59, 0.1)' },
+        { id: '10_PLUS', label: 'Normal (<30 Days)', value: stats.normal, color: 'var(--success)', bg: 'rgba(6, 78, 59, 0.1)' },
     ];
 
     return (
