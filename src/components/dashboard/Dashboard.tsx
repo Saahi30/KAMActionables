@@ -80,7 +80,7 @@ const Dashboard: React.FC = () => {
     const filteredItems = baseItems.filter(item => {
         if (timelineFilter === '45_PLUS' && item.pendingDays < 45) return false;
         if (timelineFilter === '30_PLUS' && (item.pendingDays < 30 || item.pendingDays >= 45)) return false;
-        if (timelineFilter === '10_PLUS' && (item.pendingDays < 10 || item.pendingDays >= 30)) return false;
+        if (timelineFilter === '10_PLUS' && item.pendingDays >= 30) return false;
         return true;
     });
 

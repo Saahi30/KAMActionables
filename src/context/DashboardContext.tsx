@@ -192,8 +192,9 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     // KPI Stats - Pinned to current filter context
     const stats = React.useMemo(() => {
-        // Base for KPI cards: respects Source + KAM + Search (but allows View switching via cards)
+        // Base for KPI cards: respects Source + KAM + Search AND View Toggles
         const kpiBase = baseActionables.filter(item => {
+            if (activeView === 'NEW' && !isNewItem(item)) return false;
             if (activeSource !== 'ALL' && item.source !== activeSource) return false;
             if (selectedKam.length > 0) {
                 const itemKam = item.kam || "Unassigned";
@@ -242,7 +243,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
             total: kpiBase.length,
             critical: kpiBase.filter(i => i.pendingDays >= 45).length,
             attention: kpiBase.filter(i => i.pendingDays >= 30 && i.pendingDays < 45).length,
-            normal: kpiBase.filter(i => i.pendingDays >= 10 && i.pendingDays < 30).length,
+            normal: kpiBase.filter(i => i.pendingDays < 30).length,
             viewCounts: {
                 ALL: viewBase.length,
                 NEW: viewBase.filter(isNewItem).length
